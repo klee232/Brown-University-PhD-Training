@@ -1,0 +1,148 @@
+% Model Fitting 
+% Construct Models for Fitting
+% Scenario 1: x0 only for random effect
+
+function [phi_cell mse model]=modelfitting1(pred,resp,celltype)
+ % Model Fitting 
+ % Setting Up Fixed-effect Coefficients
+ % Preprocessing the Data
+ % Get All Unique Predictor (Concentration) Data
+ unique_pred = unique(pred);
+ 
+ % Create New Storage Variable for Storing Filtered Data
+ filt_unique_pred = [];
+ filt_unique_resp = [];
+ 
+ % Looping through Each Unique Concentration
+ num_uniq_pred = size(unique_pred,1);
+ for i_uniq_pred=1:num_uniq_pred
+     curr_unique_pred = unique_pred(i_uniq_pred);
+     % Concatenate the current concentration into the new storage
+     % variable for predictor
+     filt_unique_pred = cat(1,filt_unique_pred,curr_unique_pred);
+     % Grab out all indices that are corresponding to this
+     % concentration 
+     curr_unique_pred_ind = find(pred==curr_unique_pred);
+     % Get the frequency of the corresponding concentration
+     num_curr_unique_pred = size(curr_unique_pred_ind,1);
+     % If there's more than one, average through all the
+     % corresponding data and store it into the storage variable
+     if num_curr_unique_pred_hep > 1
+        avg_curr_unique_resp = mean(resp(curr_unique_pred_ind));
+        filt_unique_resp = cat(1,filt_unique_resp, avg_curr_unique_resp);
+     % If the corresponding concentration only have one
+     % corresponding response, just store it directly.
+     else
+        filt_unique_resp = cat(1,filt_unique_resp, resp(curr_unique_pred_ind));
+     end
+ end
+ 
+ % Looping through each of the elements to check the longest
+ % decreasing interval
+ % Concatenate Predictor and Response Array Together to Form
+ % Corresponding Predictor-Response Pairs Data
+ filt_data = cat(2, filt_unique_pred, filt_unique_resp);
+ % Sort Out Data Array in Ascending Order of the First Column (Predictor Array)
+ % and Grab Out Its Size
+ sorted_filt_data = sortrows(filt_data);
+ n_col_filt_data = size(filt_data,1);
+ n_row_filt_data = size(filt_data,2);
+ % Create Variable for Storing Maximum Interval of Response
+ % Descending and Store the Corresponding Start and End predictors 
+ max_interval = 0;
+ max_start_point = 0;
+ max_end_point = 0;
+ % Create Variable to Grab Out the Starting and Ending Point of the Current Interval
+ Start_point = 0;
+ End_point = 0;
+ % Create Variable for Storing Starting and Ending Index (for
+ % pointing purpose at the data matrix)
+ Start_ind = 0;
+ End_ind = 0;
+ % Loop through the data
+ for i_col_filt_data = 1:n_col_filt_data
+     % Check if the interval is descending
+     % If this is the first looping, save the corresponding
+     % predictor value and index and skip the investigation
+     if i_col_filt_data == 1
+        Start_point = sorted_filt_data_hep(i_col_filt_data,1);
+        Start_ind = i_col_filt_data;
+     % If this is not the first looping, check if the interval is
+     % descending
+     else
+        % Grab out current tested response and the starting point
+        curr_resp = sorted_filt_data(i_col_filt_data,n_row_filt_data);
+        start_resp = sorted_filt_data(Start_ind,n_row_filt_data);
+        % If the current interval is descending, update the current
+        % point to endpoint and update current index to end index
+        if curr_resp < start_resp && i_col_filt_data ~= n_col_filt_data
+           End_point = sorted_filt_data(i_col_filt_data,1);
+           End_ind = i_col_filt_data;
+        % If the current interval is not descending (or anymore), 
+        % compare the current interval with existed maximum
+        % interval.
+        else
+           % Calculate the current interval
+           curr_interval = End_point-Start_point;
+           % Compare it with the current existed maximum interval
+           % If it's larger, update the existed maximum interval
+           % value.
+           if curr_interval > max_interval || (curr_resp < start_resp && i_col_filt_data == n_col_filt_data)
+              max_interval = curr_interval;
+              max_start_point = Start_point;
+              max_end_point = End_point;
+              if i_col_filt_data == n_col_filt_data
+                 guess_x0 = max_end_point;
+              else
+                  guess_x0 = (max_start_point+max_end_point)/2;
+              end
+           end
+           Start_point = sorted_filt_data(i_col_filt_data,1);
+           Start_ind = i_col_filt_data;
+           End_point = sorted_filt_data(i_col_filt_data,1);
+           End_ind = i_col_filt_data;
+        end
+     end
+  end
+  lumin_high = max(filt_unique_resp);
+  lumin_low = min(filt_unique_resp);
+  % Sample a Point in Data (But Avoid Choosing lumin_high
+  % and lumin_low)
+  lumin_for_sample = filt_unique_resp(filt_unique_resp~=lumin_high & filt_unique_resp~=lumin_low);
+  lumin_for_sample = sort(lumin_for_sample);
+  length_lumin_sample = size(lumin_for_sample,1);
+  lumin_samp = lumin_for_sample(ceil(length_lumin_sample/2));
+  [sam_ind_x,sam_ind_y] = find(filt_unique_resp==lumin_samp);
+  conc_sam = filt_unique_pred(sam_ind_x,sam_ind_y);
+  if mean_current_cell_bla > lumin_low
+     cal_var1 = log((lumin_high-mean_current_cell_bla)/(lumin_samp-mean_current_cell_bla)-1);
+  else
+     cal_var1 = log((lumin_high-lumin_low)/(lumin_samp-lumin_low)-1);
+  end
+  cal_var2 = (-1)/(conc_sam-guess_x0);
+  k = cal_var1*cal_var2;
+  % Determine the minimum (lower) boundary of the function
+  if mean_current_cell_bla > lumin_low
+     % Upper Bound Setting
+     L = lumin_high-mean_current_cell_bla; % since the upper bound is supposed to be 100%  
+     model = @(phi,c)(L./(1+exp(-k.*(c-phi)))+mean_current_cell_bla);
+  else
+     % Upper Bound Setting
+     L = lumin_high-lumin_low; % since the upper bound is supposed to be 100%  
+     model = @(phi,c)(L./(1+exp(-k.*(c-phi)))+lumin_low);
+  end
+  
+  % initial guess
+  phi0 = guess_x0; 
+  [phi_cell,res_cell] = nlinfit(pred,resp,model,phi0);
+  % Outputing Mean Squared Error
+  num0bs = length(pred);
+  numParams = 1;
+  df = num0bs - numParams;
+  mse = (res_cell'*res_cell)/df;
+  message = 'The mean squared error of the first model on %s is:';
+  sprintf(message,celltype);
+  disp(mse)
+  
+  
+end
