@@ -57,8 +57,8 @@ else
 end
 
 % conducting convolution on the input image
-for i_wid=1+floor(kernel_size/2):wid_conv-floor(kernel_size/2)
-    for i_col=1+floor(kernel_size/2):hei_conv-floor(kernel_size/2)
+for i_wid=1+floor(kernel_size/2):stride:wid_conv-floor(kernel_size/2)
+    for i_col=1+floor(kernel_size/2):stride:hei_conv-floor(kernel_size/2)
         for i_chn=1:chn_conv
             % region of interest processing
             region_of_interest=img_temp(i_wid-floor(kernel_size/2):i_wid+floor(kernel_size/2),...
