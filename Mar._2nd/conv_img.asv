@@ -1,0 +1,81 @@
+function conv_img=convol_img(in_img,kernel_size,kernel,stride,outcome)
+
+% default setting for convolution
+% send out error message for no input image
+if ~exist('in_img','var')
+    error("No input image found. Please input an input image")
+end
+% send out error message for no indicated kernel size
+if ~exist('kernel_size','var')
+    error("No indicated kernel size. Please enter a number for the size for kernel size")
+else
+    if ~isinteger(kernel_size)
+        error("Noninteger kernel size found. Please enter an integer")
+    end
+end
+
+% get the dimension of the input image
+wid_img=size(in_img,1);
+len_img=size(in_img,2);
+chn_img=size(in_img,3);
+
+% set the default value for kernel 
+if ~exist('kernel','var')
+    kernel=rand(kernel_size,kernel_size,chn_img);
+end
+% set the default value for stride 
+if ~exist('kernel','var') || isinteger(stride)
+    stride=1;
+end
+% set the default value for outcome
+if strcmp(outcome,"same")
+    % setting output array size
+    out_wid=wid_img;
+    out_len=len_img;
+    out_chn=chn_img;
+    conv_img=zeros(out_wid,out_len,out_chn);
+    % set padding to input image
+    pad_size=floor(kernel_size/2);
+    col_pad=zeros(out_wid,pad_size);
+    img_temp=[col_pad in_img col_pad];
+    size_row_pad=size(img_temp,2);
+    row_pad=zeros(pad_size,size_row_pad);
+    img_temp=[row_pad;img_temp;row_pad];
+% if there is no outcome variable detected or the argument is not found
+% set no padding to the input image and set the output image array as the 
+% original convolution output size 
+elseif ~exist('outcome','var') 
+    out_wid=(wid_img-kernel_size)/stride+1;
+    out_len=(len_img-kernel_size)/stride+1;
+    out_chn=chn_img;
+    conv_img=zeros(out_wid,out_len,out_chn);
+    img_temp=in_img;
+else
+    out_wid=(wid_img-kernel_size)/stride+1;
+    out_len=(len_img-kernel_size)/stride+1;
+    out_chn=chn_img;
+    conv_img=zeros(out_wid,out_len,out_chn);
+    img_temp=in_img;
+end
+
+
+% conducting convolution on the input image
+for i_wid=1+pad_size:wid_img
+    for i_col=1+pad_size:len_img
+        for i_chn=1:chn_img
+            % draw out the region of interest
+            lef_bound=max(1,i_col-floor(kernel_size/2));
+            rig_bound=min(i_col+floor(kernel_size/2),len_img);
+            upp_bound=max(1,i_wid-floor(kernel_size/2));
+            low_bound=min(i_wid+floor(kernel_size/2),wid_img);
+            region_of_interest=img_temp(upp_bound:low_bound,lef_bound:rig_bound,i_chn);
+            % conduct convolution
+            conv_region_of_interest=region_of_interest.*kernel;
+            conv_region_of_interest=sum(conv_region_of_interest);
+            % store the outcome into assigned position
+            conv_img(i_wid,i_col,i_chn)=conv_region_of_interest;
+        end
+    end
+ end
+
+end
